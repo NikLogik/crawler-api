@@ -7,12 +7,12 @@ Simple REST-API for the grabbing sites` titles
 ***
 
 ## Get list of titles
-***  
+
 
 ### Request
 #### POST /titles  
 ```
-curl http://localhost:8080/titles -H "Content-Type: application/json" -d '{ "urls": ["https://google.com"]}'
+curl http://localhost:8080/titles -H "Content-Type: application/json" -d '{ "urls": ["https://2gis.ru"]}'
 ```
 
 ### Response
@@ -24,13 +24,30 @@ Content-Length: 58
 
 {
     "titles": [
-        {"url":"https://google.com","value":"Google"}
+        {
+            "url": "https://2gis.ru",
+            "value": "Карта городов России: Москва, Санкт-Петербург, Новосибирск и другие города — 2ГИС"
+        }
     ]
 }
 ```
-or if request has invalid URLs strings  
-or requested URL return invalid response (not 2xxx)
-
+or if at least one request for URL finished exceptionally
+```
+curl http://localhost:8080/titles -H "Content-Type: application/json" -d '{ "urls": ["https://googasdfale"]}'
 ```
 
+```
+HTTP/1.1 400 Bad Request
+Content-Type: application/json
+Date: Tue, 01 Feb 2022 16:00:28 GMT
+Content-Length: 86
+
+{
+    "errors": [
+        {
+            "url": "https://googasdfale",
+            "value": "Unknown host: https://googasdfale"
+        }
+    ]
+}
 ```

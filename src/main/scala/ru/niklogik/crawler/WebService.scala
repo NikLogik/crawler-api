@@ -11,7 +11,7 @@ import org.http4s.dsl.io._
 import org.jsoup.Jsoup
 import org.jsoup.nodes.Document
 
-import java.net.MalformedURLException
+import java.net.{MalformedURLException, UnknownHostException}
 import scala.util.{Failure, Success, Try}
 
 object WebService {
@@ -58,8 +58,9 @@ object WebService {
       Success(document)
     } catch {
       case _: MalformedURLException => Failure(new IllegalArgumentException(s"Malformed URL: $url"))
+      case _: UnknownHostException => Failure(new UnknownHostException(s"Unknown host: $url"))
       case _: SocketTimeoutException => Failure(new SocketTimeoutException(s"Connection timeout: $url"))
-      case e: IOException => Failure(e)
+      case e: Throwable => Failure(e)
     }
   }
 }

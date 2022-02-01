@@ -1,7 +1,8 @@
 package ru.niklogik.crawler
 
 import cats.effect._
-import cats.effect.unsafe.IORuntime.global
+import fs2.io.IOException
+import fs2.io.net.SocketTimeoutException
 import io.circe.generic.auto._
 import org.http4s._
 import org.http4s.circe.CirceEntityCodec.circeEntityEncoder
@@ -10,20 +11,12 @@ import org.http4s.dsl.io._
 import org.jsoup.Jsoup
 import org.jsoup.nodes.Document
 
+import java.net.MalformedURLException
 import scala.util.{Failure, Success, Try}
-
-case class UrlRequest(urls: Array[String])
-case class UrlResponse(titles: Map[String, String])
-
-sealed trait TitlesResponse
-case class TitlesSuccess(titles: List[UrlItem]) extends TitlesResponse
-case class TitlesError(errors: List[UrlItem]) extends TitlesResponse
-case class UrlItem(url: String, value: String)
 
 object WebService {
 
-  implicit val decoder: EntityDecoder[IO, UrlRequest] = jsonOf[IO, UrlRequest]
-  implicit val encoder: EntityEncoder[IO, UrlResponse] = jsonEncoderOf[IO, UrlResponse]
+  implicit val decoder: EntityDecoder[IO, TitlesRequest] = jsonOf[IO, TitlesRequest]
 
   val routes: HttpRoutes[IO] = HttpRoutes.of[IO] {
     case request @ POST -> Root / "titles" => handle(request)
@@ -31,12 +24,12 @@ object WebService {
 
   def handle(request: Request[IO]): IO[Response[IO]] = {
       request
-        .as[UrlRequest]
+        .as[TitlesRequest]
         .flatMap(findTitles)
         .flatMap(makeResponse)
   }
 
-  def findTitles(requestBody: UrlRequest): IO[Either[TitlesError, TitlesSuccess]] = {
+  def findTitles(requestBody: TitlesRequest): IO[Either[TitlesError, TitlesSuccess]] = IO {
     var responseBody = List[UrlItem]()
     var errors = List[UrlItem]()
 
@@ -47,8 +40,9 @@ object WebService {
         case Success(document) => responseBody = responseBody :+ UrlItem(url, document.title())
       }
     }
-    if (errors.nonEmpty) IO(Left(TitlesError(errors)))
-    else IO(Right(TitlesSuccess(responseBody)))
+
+    if (errors.nonEmpty) Left(TitlesError(errors))
+    else Right(TitlesSuccess(responseBody))
   }
 
   def makeResponse(either: Either[TitlesError, TitlesSuccess]): IO[Response[IO]] = {
@@ -58,5 +52,14 @@ object WebService {
     }
   }
 
-  def loadHtml(url: String): Try[Document] = Try(Jsoup.connect(url).get())
+  def loadHtml(url: String): Try[Document] = {
+    try {
+      val document = Jsoup.connect(url).get()
+      Success(document)
+    } catch {
+      case _: MalformedURLException => Failure(new IllegalArgumentException(s"Malformed URL: $url"))
+      case _: SocketTimeoutException => Failure(new SocketTimeoutException(s"Connection timeout: $url"))
+      case e: IOException => Failure(e)
+    }
+  }
 }

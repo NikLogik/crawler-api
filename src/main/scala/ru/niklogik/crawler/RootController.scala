@@ -14,7 +14,7 @@ import org.jsoup.nodes.Document
 import java.net.{MalformedURLException, UnknownHostException}
 import scala.util.{Failure, Success, Try}
 
-object WebService {
+object RootController {
 
   implicit val decoder: EntityDecoder[IO, TitlesRequest] = jsonOf[IO, TitlesRequest]
 
@@ -26,30 +26,22 @@ object WebService {
       request
         .as[TitlesRequest]
         .flatMap(findTitles)
-        .flatMap(makeResponse)
+        .flatMap(Ok(_))
   }
 
-  def findTitles(requestBody: TitlesRequest): IO[Either[TitlesError, TitlesSuccess]] = IO {
-    var responseBody = List[UrlItem]()
-    var errors = List[UrlItem]()
+  def findTitles(requestBody: TitlesRequest): IO[TitlesResponse] = IO {
+    var responseBody = List[Title]()
+    var errors = List[TitleError]()
 
     for (url <- requestBody.urls) {
       val page = loadHtml(url)
       page match {
-        case Failure(exception)  => errors = errors :+ UrlItem(url, exception.getMessage)
-        case Success(document) => responseBody = responseBody :+ UrlItem(url, document.title())
+        case Failure(exception)  => errors = errors :+ TitleError(url, exception.getMessage)
+        case Success(document) => responseBody = responseBody :+ Title(url, document.title())
       }
     }
 
-    if (errors.nonEmpty) Left(TitlesError(errors))
-    else Right(TitlesSuccess(responseBody))
-  }
-
-  def makeResponse(either: Either[TitlesError, TitlesSuccess]): IO[Response[IO]] = {
-    either match {
-      case Left(errors) => BadRequest(errors)
-      case Right(response) => Ok(response)
-    }
+    TitlesResponse(responseBody, errors)
   }
 
   def loadHtml(url: String): Try[Document] = {

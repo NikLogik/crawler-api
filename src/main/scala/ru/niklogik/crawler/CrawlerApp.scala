@@ -7,7 +7,7 @@ import org.http4s.server.Router
 
 object  CrawlerApp extends IOApp {
 
-  val httpApp: HttpApp[IO] = Router("/" -> WebService.routes).orNotFound
+  val httpApp: HttpApp[IO] = Router("/" -> RootController.routes).orNotFound
 
   override def run(args: List[String]): IO[ExitCode] = {
     BlazeServerBuilder[IO]

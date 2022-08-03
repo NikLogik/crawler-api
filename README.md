@@ -2,6 +2,8 @@
 
 ### Simple REST-API for the grabbing sites` titles
 
+Test task for [2GIS](https://2gis.ru/)
+
 # Usage
 
 ## Get list of titles
